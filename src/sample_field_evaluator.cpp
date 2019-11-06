@@ -184,34 +184,6 @@ evaluate_state( const PredictState & state, const rcsc::WorldModel & wm )
 
     Vector2D bestPoint = ServerParam::i().theirTeamGoalPos();
 
-    int forward_opp = 0;
-
-    for (PlayerPtrCont::const_iterator p = wm.opponentsFromSelf().begin();
-         p != wm.opponentsFromSelf().end();
-         p++) 
-    {
-        if((*p)->pos().x > state.self().pos().x && !(*p)->goalie()) {
-
-        }
-    }
-
-
-    if(forward_opp > 0) {
-        for(PlayerPtrCont::const_iterator tm = wm.teammatesFromSelf().begin();
-            tm != wm.teammatesFromSelf().end();
-            tm++)
-        {
-            // checar se ta impedido
-            if( (*tm)->pos().x > wm.offsideLineX()+1.0 ) continue;
-
-            // checar se tem menos gente marcando o teammate
-
-            double tm_x = (*tm)->pos().x;
-            
-            // depois checar se caso o passe seja feito, nao ocorra interceptacao
-        }
-    }
-
 
     Vector2D left (wm.self().pos().x, wm.self.pos().y-10.0);
     Vector2D right (wm.self().pos().x, wm.self.pos().y+10.0);
@@ -228,7 +200,15 @@ evaluate_state( const PredictState & state, const rcsc::WorldModel & wm )
         }
     }
 
-    if(shadow_opp == 0) {
+    Vector2D half_moon (36.0,0.0);
+    Vector2D pos_left_line (52.5, -20.0);
+    Vector2D pos_right_line (52.5, 20.0);
+    Vector2D left_line = pos_left_line - half_moon;
+    Vector2D right_line = pos_right_line - half_moon;
+    Sector2D area (half_moon, 0.0, 10000.0, left_line.th(), right_line.th());
+
+    // se n tiver marcador ou tiver na area e com 2 ou menos marcadores 
+    if( (shadow_opp == 0) || (area.contains(wm.self().pos()) && shadow_opp <= 2) ) {
         // continua com o gol como melhor ponto
     }
     else  {
@@ -251,15 +231,29 @@ evaluate_state( const PredictState & state, const rcsc::WorldModel & wm )
                     tm_shadow_opp++;
                 }
             }
+            // checar se ta impedido
+            if( (*tm)->pos().x > wm.offsideLineX()+1.0 ) continue;
+
+            // checar se caso o passe seja feito, nao ocorra interceptacao
+            double dist_opp, dist_tm;
+            dist_tm = ((*tm)->pos()-state.ball().pos()).length;
+            wm.getOpponentNearestTo(state.ball().pos(), VALID_PLAYER_THRESHOLD, &dist_opp);
+
+            if( dist_tm > dist_opp ) continue;
+
             // se tiver menos marcadores e tiver a frente do meio campo
-            if( tm_shadow_opp < less_shadow_opp && (std::fabs((*tm)->pos().x) > 0.0) ) {
+            if( tm_shadow_opp < less_shadow_opp && (std::fabs((*tm)->pos().x) >= 0.0) ) {
                 less_shadow_opp = tm_shadow_opp;
                 pos_best_tm = (*tm)->pos();
             }
         }
-        if(less_shadow_opp < shadow_opp) {
+        if( (less_shadow_opp < shadow_opp) ) {
             bestPoint = pos_best_tm;
         }
+        double dist_ball = wm.ball().distFromSelf();
+        double tm_dist_ball = wm.getDistTeammateNearestToBall(VALID_PLAYER_THRESHOLD, false);
+        // se tiver na area
+
     }
 
     point += std::max( 0.0,
